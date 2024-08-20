@@ -6,7 +6,7 @@ app.use(express.json());
 
 // Import and use routes
 const productRoutes = require('./controller/productController');
-app.use('/categories', productRoutes);
+app.use('/', productRoutes);
 
 // Start the server
 const PORT = process.env.PORT || 3000;

@@ -1,5 +1,6 @@
 const express = require('express');
 const ecommerceService = require('../services/ecommerceService');
+const { v4: uuidv4 } = require('uuid');
 
 
 const router = express.Router();
@@ -22,10 +23,12 @@ const sortProducts = (products, sortBy, order) => {
     });
 };
 
+
+const map = new Map();
 // Route to fetch top N products within a category and price range
 router.get('/categories/:categoryname/products', async (req, res) => {
     const { categoryname } = req.params;
-    const { top , page = null, sortBy='price', order = 'asc', minPrice=1, maxPrice=1000000} = req.query;
+    const { top, page = null, sortBy = 'price', order = 'asc', minPrice = 1, maxPrice = 1000000 } = req.query;
 
 
     // Construct query parameters
@@ -36,27 +39,34 @@ router.get('/categories/:categoryname/products', async (req, res) => {
         maxPrice: parseInt(maxPrice),
     };
 
-    if(top>10 && page===null){
+    if (top > 10 && page === null) {
         res.json("Please send page parameter as well");
         return;
     }
-    const companies=["AMZ", "FLP", "SNP", "MYN", "AZO"];
+    const companies = ["AMZ", "FLP", "SNP", "MYN", "AZO"];
 
     // Fetch products from the selected company's API
 
 
     let products = [];
-    
-    for(var i=0;i<companies.length;i++){
-        var company =companies[i];
-        
-    const companyProducts = await ecommerceService.fetchProducts(company, categoryname, queryParams);
-    console.log(companyProducts);
 
-    products = products.concat(companyProducts);
+    for (var i = 0; i < companies.length; i++) {
+        var company = companies[i];
 
-  }
+        const companyProducts = await ecommerceService.fetchProducts(company, categoryname, queryParams);
+        console.log(companyProducts);
 
+        products = products.concat(companyProducts);
+
+    }
+
+
+    products.forEach(product => {
+        const id = generateUniqueId();
+        product.productid = id;
+        map.set(id, product);
+    }
+    )
 
 
     // Sort products if sortBy parameter is provided
@@ -67,44 +77,47 @@ router.get('/categories/:categoryname/products', async (req, res) => {
     console.log("sorted ");
     console.table(products);
 
-    let filterProduct= [];
+    let filterProduct = [];
 
 
     // if(top>10 && page!= null){
-        for(var i=0;i<top;i++){
-            var j = (page-1)*10 +i;
-            filterProduct=filterProduct.concat(products[j]);
-    
-        }
+    for (var i = 0; i < top; i++) {
+        var j = (page - 1) * 10 + i;
+        filterProduct = filterProduct.concat(products[j]);
 
-        products=filterProduct;
+    }
+
+    products = filterProduct;
     // }
 
-    
+
     res.json(products);
 
 
 });
 
+
 // Route to fetch details of a specific product
 // Uncomment and modify this if you need it
-// router.get('/categories/:categoryname/products/:productid', async (req, res) => {
-//     const { categoryname, productid } = req.params;
-//     const { company } = req.query;
+router.get('/categories/:categoryname/products/:productid', async (req, res) => {
+    const { categoryname, productid } = req.params;
 
-//     // Validate company name
-//     if (!ecommerceApis[company]) {
-//         return res.status(400).json({ error: 'Invalid company name' });
-//     }
+    if(map.has(productid)){
+        const product = map.get(productid);
+        res.json(product);
+    }
+    else{
+        res.json("No Product Found");
+    }
+});
 
-//     const apiUrl = `${ecommerceApis[company]}/${categoryname}/products/${productid}`;
 
-//     try {
-//         const response = await axios.get(apiUrl);
-//         res.json(response.data);
-//     } catch (error) {
-//         res.status(404).json({ error: 'Product not found' });
-//     }
-// });
+
+
+// Generate a unique identifier for a product
+const generateUniqueId = () => {
+    return uuidv4();
+};
+
 
 module.exports = router;
